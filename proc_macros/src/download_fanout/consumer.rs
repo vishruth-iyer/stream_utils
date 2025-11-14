@@ -1,15 +1,3 @@
-pub(crate) fn create_consumer_group_struct(mut item: syn::ItemStruct) -> syn::ItemStruct {
-    for field in &mut item.fields {
-        let ty = &field.ty;
-        field.attrs.clear();
-        field.attrs.push(syn::parse_quote! { #[builder(into)] });
-        field.ty = syn::parse_quote! { stream_utils::download_fanout::consumer::ConsumerOrResolved<#ty> };
-    }
-    item.attrs.clear();
-    item.attrs.push(syn::parse_quote! { #[derive(bon::Builder)] });
-    item
-}
-
 pub(crate) fn create_consumer_group_output_struct(mut item: syn::ItemStruct, ident: syn::Ident, fanout_consumer_group_output_derives: Option<syn::Attribute>) -> syn::ItemStruct {
     for field in &mut item.fields {
         field.attrs.clear();

@@ -173,26 +173,6 @@ impl From<Error> for download_fanout::error::DownloadFanoutError<Error> {
     }
 }
 
-// download_fanout::consumer::consumer_group! {
-//     struct DownloadFanoutConsumers -> Result<DownloadFanoutConsumersOutput, Error>;
-//     bytes_counter_1: BytesCounter,
-//     bytes_counter_2: BytesCounter,
-//     bytes_counter_3: BytesCounter,
-//     bytes_counter_4: BytesCounter,
-//     bytes_counter_5: BytesCounter,
-//     bytes_counter_6: BytesCounter,
-//     bytes_counter_7: BytesCounter,
-//     bytes_counter_8: BytesCounter,
-//     bytes_counter_9: BytesCounter,
-//     bytes_counter_10: BytesCounter,
-//     bytes_counter_11: BytesCounter,
-//     bytes_counter_12: BytesCounter,
-//     bytes_counter_13: BytesCounter,
-// }
-
-// #[proc_macros::download_fanout_consumer_group(error = Error; output_derives = Debug)]
-// #[derive(Debug)]
-
 #[derive(bon::Builder, proc_macros::FanoutConsumerGroup, Clone)]
 #[fanout_consumer_group_error_ty(Error)]
 #[fanout_consumer_group_output_derive(Debug)]

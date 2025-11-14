@@ -1,22 +1,5 @@
 mod download_fanout;
 
-#[proc_macro_attribute]
-pub fn download_fanout_consumer_group(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let item_struct = syn::parse_macro_input!(item as syn::ItemStruct);
-
-    let consumer_group_output_struct = download_fanout::consumer::create_consumer_group_output_struct(item_struct.clone(), quote::format_ident!("{}Output", item_struct.ident), None);
-    let consumer_group_struct = download_fanout::consumer::create_consumer_group_struct(item_struct);
-    let consumer_group_impl = download_fanout::consumer::impl_consumer_group(&consumer_group_struct, &consumer_group_output_struct.ident, &syn::parse_quote! { Error });
-
-    let output = quote::quote! {
-        #consumer_group_struct
-        #consumer_group_impl
-        #consumer_group_output_struct
-    }.into();
-    
-    output
-}
-
 #[proc_macro_derive(FanoutConsumerGroup, attributes(fanout_consumer_group_error_ty, fanout_consumer_group_output_derive))]
 pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let consumer_group_struct = syn::parse_macro_input!(input as syn::ItemStruct);

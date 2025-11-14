@@ -14,33 +14,6 @@ pub mod consumer;
 pub mod error;
 pub mod source;
 
-pub struct DownloadFanoutBuilder<Subscribers> {
-    subscribers: Subscribers,
-}
-
-impl DownloadFanoutBuilder<()> {
-    pub fn new() -> Self {
-        Self { subscribers: () }
-    }
-}
-
-impl<Consumers> DownloadFanoutBuilder<Consumers> {
-    pub fn with_consumer<Consumer: consumer::FanoutConsumer>(
-        self,
-        consumer: Consumer,
-    ) -> DownloadFanoutBuilder<(consumer::ConsumerOrResolved<Consumer>, Consumers)>
-    where
-        Consumer: consumer::FanoutConsumer,
-    {
-        DownloadFanoutBuilder {
-            subscribers: (
-                consumer::ConsumerOrResolved::from(consumer),
-                self.subscribers,
-            ),
-        }
-    }
-}
-
 pub struct DownloadFanout<Source, Consumers> {
     source: Source,
     consumers: Consumers,

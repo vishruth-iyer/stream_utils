@@ -25,38 +25,6 @@ impl<Consumer: FanoutConsumer> From<Consumer> for ConsumerOrResolved<Consumer> {
     }
 }
 
-// impl<Consumer> Clone for ConsumerOrResolved<Consumer>
-// where
-//     Consumer: FanoutConsumer + Clone,
-//     Consumer::Output: Clone
-// {
-//     fn clone(&self) -> Self {
-//         match self {
-//             Self::Consumer(consumer) => Self::Consumer(consumer.clone()),
-//             Self::ConsumerOutput(consumer_output) => Self::ConsumerOutput(consumer_output.clone()),
-//         }
-//     }
-// }
-
-// impl<Consumer: FanoutConsumer> FanoutConsumer for ConsumerOrResolved<Consumer>
-// where
-//     Consumer::Output: Clone,
-// {
-//     type Output = Consumer::Output;
-//     type Error = Consumer::Error;
-//     async fn consume_from_fanout(
-//         &self,
-//         rx: broadcaster::channel::Receiver<Bytes>,
-//         cancellation_token: broadcaster::CancellationToken,
-//         content_length: Option<u64>,
-//     ) -> Result<Self::Output, Self::Error> {
-//         match self {
-//             ConsumerOrResolved::Consumer(consumer) => consumer.consume_from_fanout(rx, cancellation_token, content_length).await,
-//             ConsumerOrResolved::ConsumerOutput(consumer_output) => Ok(consumer_output.clone()),
-//         }
-//     }
-// }
-
 pub trait FanoutConsumerGroup {
     type Output;
     type Error;
@@ -78,24 +46,50 @@ pub trait FanoutConsumerGroup {
     );
 }
 
-// impl<Consumer> FanoutConsumerGroup for Consumer
-// where
-//     Consumer: FanoutConsumer
-// {
-//     type Output = Consumer::Output;
-//     type Error = Consumer::Error;
-//     fn _consume_from_fanout<'a, 'b>(
-//         &'a self,
-//         download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
-//         content_length: Option<u64>,
-//     ) -> (
-//         &'b mut broadcaster::Broadcaster<Bytes>,
-//         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-//     ) {
-//         let future = self.consume_from_fanout(download_broadcaster.subscribe(), download_broadcaster.get_cancellation_token().clone(), content_length);
-//         (download_broadcaster, future)
-//     }
-// }
+impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::sync::Arc<ConsumerGroup> {
+    type Output = ConsumerGroup::Output;
+    type Error = ConsumerGroup::Error;
+    fn _consume_from_fanout<'a, 'b>(
+        &'a self,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        content_length: Option<u64>,
+    ) -> (
+        &'b mut broadcaster::Broadcaster<Bytes>,
+        impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
+    ) {
+        self.as_ref()._consume_from_fanout(download_broadcaster, content_length)
+    }
+}
+
+impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::rc::Rc<ConsumerGroup> {
+    type Output = ConsumerGroup::Output;
+    type Error = ConsumerGroup::Error;
+    fn _consume_from_fanout<'a, 'b>(
+        &'a self,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        content_length: Option<u64>,
+    ) -> (
+        &'b mut broadcaster::Broadcaster<Bytes>,
+        impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
+    ) {
+        self.as_ref()._consume_from_fanout(download_broadcaster, content_length)
+    }
+}
+
+impl<'consumer_group, ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for &'consumer_group ConsumerGroup {
+    type Output = ConsumerGroup::Output;
+    type Error = ConsumerGroup::Error;
+    fn _consume_from_fanout<'a, 'b>(
+        &'a self,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        content_length: Option<u64>,
+    ) -> (
+        &'b mut broadcaster::Broadcaster<Bytes>,
+        impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
+    ) {
+        (*self)._consume_from_fanout(download_broadcaster, content_length)
+    }
+}
 
 impl<Consumer> FanoutConsumerGroup for ConsumerOrResolved<Consumer>
 where
