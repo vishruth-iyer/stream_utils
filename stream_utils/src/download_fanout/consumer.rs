@@ -1,13 +1,13 @@
 use bytes::Bytes;
 
-use crate::broadcaster;
+use crate::{broadcaster, channel};
 
 pub trait FanoutConsumer {
     type Output;
     type Error;
     async fn consume_from_fanout(
         &self,
-        rx: broadcaster::channel::Receiver<Bytes>,
+        rx: impl channel::receiver::Receiver<Bytes>,
         cancellation_token: broadcaster::CancellationToken,
         content_length: Option<u64>,
     ) -> Result<Self::Output, Self::Error>;
@@ -28,65 +28,89 @@ impl<Consumer: FanoutConsumer> From<Consumer> for ConsumerOrResolved<Consumer> {
 pub trait FanoutConsumerGroup {
     type Output;
     type Error;
-    fn consume_from_fanout(
-        &self,
-        download_broadcaster: &mut broadcaster::Broadcaster<Bytes>,
+    fn consume_from_fanout<'a, 'b, Channel>(
+        &'a self,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
-    ) -> impl Future<Output = Result<Self::Output, Self::Error>> + '_ {
-        self._consume_from_fanout(download_broadcaster, content_length).1
+    ) -> impl Future<Output = Result<Self::Output, Self::Error>> + 'a
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a,
+    {
+        self._consume_from_fanout(download_broadcaster, content_length)
+            .1
     }
     // the above is the only signature I want, but we need the below to tell the compiler that the future doesn't borrow the broadcaster
-    fn _consume_from_fanout<'a, 'b>(
+    fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes>,
+        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-    );
+    )
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a;
 }
 
 impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::sync::Arc<ConsumerGroup> {
     type Output = ConsumerGroup::Output;
     type Error = ConsumerGroup::Error;
-    fn _consume_from_fanout<'a, 'b>(
+    fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes>,
+        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-    ) {
-        self.as_ref()._consume_from_fanout(download_broadcaster, content_length)
+    )
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a,
+    {
+        self.as_ref()
+            ._consume_from_fanout(download_broadcaster, content_length)
     }
 }
 
 impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::rc::Rc<ConsumerGroup> {
     type Output = ConsumerGroup::Output;
     type Error = ConsumerGroup::Error;
-    fn _consume_from_fanout<'a, 'b>(
+    fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes>,
+        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-    ) {
-        self.as_ref()._consume_from_fanout(download_broadcaster, content_length)
+    )
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a,
+    {
+        self.as_ref()
+            ._consume_from_fanout(download_broadcaster, content_length)
     }
 }
 
-impl<'consumer_group, ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for &'consumer_group ConsumerGroup {
+impl<'consumer_group, ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup
+    for &'consumer_group ConsumerGroup
+{
     type Output = ConsumerGroup::Output;
     type Error = ConsumerGroup::Error;
-    fn _consume_from_fanout<'a, 'b>(
+    fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes>,
+        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-    ) {
+    )
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a,
+    {
         (*self)._consume_from_fanout(download_broadcaster, content_length)
     }
 }
@@ -98,14 +122,18 @@ where
 {
     type Output = Consumer::Output;
     type Error = Consumer::Error;
-    fn _consume_from_fanout<'a, 'b>(
+    fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes>,
+        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
-    ) {
+    )
+    where
+        Channel: channel::Channel<Bytes>,
+        Channel::Receiver: 'a,
+    {
         let future = match self {
             Self::Consumer(consumer) => {
                 tokio_util::either::Either::Left(consumer.consume_from_fanout(

@@ -1,2 +1,2 @@
 // mod impl_trait;
-pub(super) mod consumer; 
+pub(super) mod consumer;

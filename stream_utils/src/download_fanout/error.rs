@@ -1,8 +1,4 @@
 #[derive(thiserror::Error, Debug)]
-#[error("an error occurred")]
-pub struct GenericError;
-
-#[derive(thiserror::Error, Debug)]
 pub enum DownloadFanoutError<E> {
     #[error("[RetryableError]: {0}")]
     RetryableError(E),
