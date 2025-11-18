@@ -306,7 +306,7 @@ impl From<Error> for download_fanout::error::DownloadFanoutError<Error> {
     }
 }
 
-#[derive(bon::Builder, proc_macros::FanoutConsumerGroup, Clone)]
+#[derive(bon::Builder, stream_utils::proc_macros::FanoutConsumerGroup, Clone)]
 #[fanout_consumer_group_error_ty(Error)]
 #[fanout_consumer_group_output_derive(Debug)]
 struct DownloadFanoutConsumers {
