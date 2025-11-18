@@ -7,9 +7,3 @@ impl<T> Receiver<T> for () {
         None
     }
 }
-
-impl<T> Receiver<T> for tokio::sync::mpsc::Receiver<T> {
-    async fn recv(&mut self) -> Option<T> {
-        self.recv().await
-    }
-}

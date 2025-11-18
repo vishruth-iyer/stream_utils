@@ -2,12 +2,14 @@ use itertools::Itertools;
 
 use super::Broadcaster;
 
+const TOKIO_CHANNEL: fn(usize) -> (tokio::sync::mpsc::Sender<i32>, tokio::sync::mpsc::Receiver<i32>) = tokio::sync::mpsc::channel::<i32>;
+
 #[tokio::test]
 async fn test_broadcaster_all_receivers_receive_all_messages_in_order() {
     let messages = (0..5).collect_vec();
     let mut broadcaster = Broadcaster::builder()
         .buffer_size(1)
-        .channel(tokio::sync::mpsc::channel)
+        .channel(TOKIO_CHANNEL)
         .build();
     let mut rx1 = broadcaster.subscribe();
     let mut rx2 = broadcaster.subscribe();
