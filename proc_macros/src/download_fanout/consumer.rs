@@ -7,7 +7,7 @@ pub(crate) fn create_consumer_group_output_struct(
         field.attrs.clear();
         let ty = &field.ty;
         field.ty = syn::parse_quote! {
-            <#ty as download_fanout::consumer::FanoutConsumerGroup>::Output
+            <#ty as stream_utils::download_fanout::consumer::FanoutConsumerGroup>::Output
         };
     }
     item.ident = ident;
@@ -99,7 +99,7 @@ pub(crate) fn impl_consumer_group(
                 content_length: Option<u64>,
             ) -> (
                 &'b mut stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
-                impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
+                impl std::future::Future<Output = Result<Self::Output, Self::Error>> + 'a,
             )
             where
                 Channel: stream_utils::channel::Channel<bytes::Bytes>,
