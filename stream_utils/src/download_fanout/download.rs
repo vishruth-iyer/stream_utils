@@ -22,6 +22,7 @@ where
     Source: super::source::FanoutSource,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
+    BroadcasterChannel::Receiver: 'static,
     EgressSender: super::egress::Sender,
     super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
 {
@@ -52,6 +53,7 @@ where
     Source: super::source::FanoutSource,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
+    BroadcasterChannel::Receiver: 'static,
     EgressSender: super::egress::Sender,
 {
     pub async fn send<Error>(
@@ -78,6 +80,7 @@ where
     Source: super::source::FanoutSource + super::source::IntoInfo<SourceInfo>,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
+    BroadcasterChannel::Receiver: 'static,
     EgressSender: super::egress::Sender,
 {
     pub async fn send_returning_source_info<Error>(

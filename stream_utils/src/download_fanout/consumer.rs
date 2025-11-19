@@ -35,7 +35,7 @@ pub trait FanoutConsumerGroup {
     ) -> impl Future<Output = Result<Self::Output, Self::Error>> + 'a
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a,
+        Channel::Receiver: 'static,
     {
         self._consume_from_fanout(download_broadcaster, content_length)
             .1
@@ -51,7 +51,7 @@ pub trait FanoutConsumerGroup {
     )
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a;
+        Channel::Receiver: 'static;
 }
 
 impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::sync::Arc<ConsumerGroup> {
@@ -67,7 +67,7 @@ impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::sync::Arc<
     )
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a,
+        Channel::Receiver: 'static,
     {
         self.as_ref()
             ._consume_from_fanout(download_broadcaster, content_length)
@@ -87,7 +87,7 @@ impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::rc::Rc<Con
     )
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a,
+        Channel::Receiver: 'static,
     {
         self.as_ref()
             ._consume_from_fanout(download_broadcaster, content_length)
@@ -109,7 +109,7 @@ impl<'consumer_group, ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup
     )
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a,
+        Channel::Receiver: 'static,
     {
         (*self)._consume_from_fanout(download_broadcaster, content_length)
     }
@@ -132,7 +132,7 @@ where
     )
     where
         Channel: channel::Channel<Bytes>,
-        Channel::Receiver: 'a,
+        Channel::Receiver: 'static,
     {
         let future = match self {
             Self::Consumer(consumer) => {

@@ -54,6 +54,7 @@ where
     ) -> Result<Consumers::Output, DownloadFanoutError<Error>>
     where
         BroadcasterChannel: channel::Channel<bytes::Bytes>,
+        BroadcasterChannel::Receiver: 'static,
         EgressSender: egress::Sender,
         DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {

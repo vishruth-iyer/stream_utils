@@ -10,7 +10,7 @@ pub trait Sender<T> {
     where
         BroadcasterChannel: super::Channel<U>,
         T: From<U>,
-        BroadcasterChannel::Receiver: 'a,
+        BroadcasterChannel::Receiver: 'static,
     {
         self._send_from_broadcaster(broadcaster).1
     }
@@ -24,7 +24,7 @@ pub trait Sender<T> {
     where
         BroadcasterChannel: super::Channel<U>,
         T: From<U>,
-        BroadcasterChannel::Receiver: 'a,
+        BroadcasterChannel::Receiver: 'static,
     {
         let mut rx = broadcaster.subscribe();
         let future = async move {

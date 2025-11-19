@@ -2,6 +2,11 @@ use stream_utils::download_fanout;
 
 #[tokio::main]
 async fn main() {
+    run().await;
+    tokio::task::spawn(run()).await;
+}
+
+async fn run() {
     let download_fanout_consumers = DownloadFanoutConsumers::builder()
         .bytes_counter_1(BytesCounter::new())
         .bytes_counter_2(BytesCounter::new_with_limit(32768))
