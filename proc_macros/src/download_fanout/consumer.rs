@@ -89,6 +89,7 @@ pub(crate) fn impl_consumer_group(
     };
 
     syn::parse_quote! {
+        #[automatically_derived]
         impl #impl_generics stream_utils::download_fanout::consumer::FanoutConsumerGroup for #consumer_group_ident #ty_generics #where_clause {
             type Output = #output_struct_ident;
             type Error = #error_ty;
