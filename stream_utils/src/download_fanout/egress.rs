@@ -1,64 +1,44 @@
-use crate::{
-    broadcaster,
-    channel::{self, receiver::Receiver, sender::Sender},
-};
+pub struct Item(Result<bytes::Bytes, GenericError>);
 
-pub type Item = Result<bytes::Bytes, GenericError>;
-
-pub trait Channel: channel::Channel<Item> {
-    fn send_from_broadcaster<'a, 'b, BroadcasterChannel>(
-        tx: &'a Self::Sender,
-        broadcaster: &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-    ) -> impl Future<Output = ()> + 'a
-    where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
-        BroadcasterChannel::Receiver: 'a;
-    fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
-        tx: &'a Self::Sender,
-        broadcaster: &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-    ) -> (
-        &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-        impl Future<Output = ()> + 'a,
-    )
-    where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
-        BroadcasterChannel::Receiver: 'a;
-}
-
-impl<T> Channel for T
-where
-    T: channel::Channel<Item>,
-{
-    fn send_from_broadcaster<'a, 'b, BroadcasterChannel>(
-        tx: &'a Self::Sender,
-        broadcaster: &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-    ) -> impl Future<Output = ()> + 'a
-    where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
-        BroadcasterChannel::Receiver: 'a,
-    {
-        Self::_send_from_broadcaster(tx, broadcaster).1
-    }
-    fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
-        tx: &'a Self::Sender,
-        broadcaster: &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-    ) -> (
-        &'b mut broadcaster::Broadcaster<bytes::Bytes, BroadcasterChannel>,
-        impl Future<Output = ()> + 'a,
-    )
-    where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
-        BroadcasterChannel::Receiver: 'a,
-    {
-        let mut rx = broadcaster.subscribe();
-        let future = async move {
-            while let Some(chunk) = rx.recv().await {
-                tx.send(Ok(chunk)).await;
-            }
-        };
-        (broadcaster, future)
+impl Item {
+    pub fn into_inner(self) -> Result<bytes::Bytes, GenericError> {
+        self.0
     }
 }
+
+impl From<Result<bytes::Bytes, GenericError>> for Item {
+    fn from(value: Result<bytes::Bytes, GenericError>) -> Self {
+        Self(value)
+    }
+}
+
+impl From<bytes::Bytes> for Item {
+    fn from(value: bytes::Bytes) -> Self {
+        Self(Ok(value))
+    }
+}
+
+impl From<GenericError> for Item {
+    fn from(value: GenericError) -> Self {
+        Self(Err(value))
+    }
+}
+
+impl From<Item> for Result<bytes::Bytes, GenericError> {
+    fn from(value: Item) -> Self {
+        value.into_inner()
+    }
+}
+
+impl std::ops::Deref for Item {
+    type Target = Result<bytes::Bytes, GenericError>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub trait Sender: crate::channel::sender::Sender<Item> {}
+impl<T> Sender for T where T: crate::channel::sender::Sender<Item> {}
 
 #[derive(thiserror::Error, Debug)]
 #[error("an error occurred")]

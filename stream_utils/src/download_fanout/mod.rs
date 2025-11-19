@@ -47,14 +47,14 @@ where
     Consumers: consumer::FanoutConsumerGroup,
 {
     #[tracing::instrument(name = "download_fanout", skip_all)]
-    async fn download_inner<BroadcasterChannel, EgressChannel, Error>(
+    async fn download_inner<BroadcasterChannel, EgressSender, Error>(
         &mut self,
         broadcaster_channel: BroadcasterChannel,
-        egress_tx: &EgressChannel::Sender,
+        egress_tx: &EgressSender,
     ) -> Result<Consumers::Output, DownloadFanoutError<Error>>
     where
         BroadcasterChannel: channel::Channel<bytes::Bytes>,
-        EgressChannel: egress::Channel,
+        EgressSender: egress::Sender,
         DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {
         let start = tokio::time::Instant::now();
@@ -69,8 +69,7 @@ where
         let subscribers_future = self
             .consumers
             .consume_from_fanout(&mut download_broadcaster, content_length);
-        let egress_future =
-            EgressChannel::send_from_broadcaster(egress_tx, &mut download_broadcaster);
+        let egress_future = egress_tx.send_from_broadcaster(&mut download_broadcaster);
 
         // broadcast download stream
         let download_broadcast_future = self.source.broadcast(download_broadcaster);

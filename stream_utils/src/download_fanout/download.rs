@@ -1,25 +1,25 @@
-use crate::channel::{self, sender::Sender};
+use crate::channel;
 
 pub struct DownloadFanoutDownload<
     Source,
     Consumers,
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
-    EgressChannel: super::egress::Channel,
+    EgressSender: super::egress::Sender,
     SourceInfo,
 > {
     download_fanout: super::DownloadFanout<Source, Consumers>,
     broadcaster_channel: BroadcasterChannel,
-    egress_tx: EgressChannel::Sender,
+    egress_tx: EgressSender,
     source_info: std::marker::PhantomData<SourceInfo>,
 }
 
-impl<Source, Consumers, BroadcasterChannel, EgressChannel, SourceInfo>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressChannel, SourceInfo>
+impl<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
+    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
 where
     Source: super::source::FanoutSource + super::source::IntoInfo<SourceInfo>,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
-    EgressChannel: super::egress::Channel,
+    EgressSender: super::egress::Sender,
 {
     pub async fn send<Error>(
         mut self,
@@ -29,7 +29,7 @@ where
     {
         match self
             .download_fanout
-            .download_inner::<BroadcasterChannel, EgressChannel, Error>(
+            .download_inner::<BroadcasterChannel, EgressSender, Error>(
                 self.broadcaster_channel,
                 &self.egress_tx,
             )
@@ -45,7 +45,7 @@ where
             Err(e) => {
                 // notify egress receiver that an error occurred
                 // for the egress multipart upload use case, this aborts the upload
-                let _ = self.egress_tx.send(Err(super::egress::GenericError)).await;
+                let _ = self.egress_tx.send(super::egress::GenericError.into()).await;
                 drop(self.egress_tx);
                 let retry_fanout = e.get_retry_fanout(self.download_fanout);
                 Err((retry_fanout, e.into_inner()))
@@ -59,10 +59,10 @@ impl<Source, Consumers, BroadcasterChannel, SourceInfo>
 where
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
 {
-    pub fn with_egress_tx<EgressChannel: super::egress::Channel>(
+    pub fn with_egress_tx<EgressSender: super::egress::Sender>(
         self,
-        egress_tx: EgressChannel::Sender,
-    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressChannel, SourceInfo>
+        egress_tx: EgressSender,
+    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
     {
         DownloadFanoutDownload {
             download_fanout: self.download_fanout,
@@ -73,15 +73,15 @@ where
     }
 }
 
-impl<Source, Consumers, BroadcasterChannel, EgressChannel>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressChannel, ()>
+impl<Source, Consumers, BroadcasterChannel, EgressSender>
+    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, ()>
 where
     BroadcasterChannel: channel::Channel<bytes::Bytes>,
-    EgressChannel: super::egress::Channel,
+    EgressSender: super::egress::Sender,
 {
     pub fn with_source_info<SourceInfo>(
         self,
-    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressChannel, SourceInfo>
+    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
     where
         Source: super::source::IntoInfo<SourceInfo>,
     {
