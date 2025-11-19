@@ -27,10 +27,7 @@ where
     super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
 {
     match download_fanout
-        .download_inner::<BroadcasterChannel, EgressSender, Error>(
-            broadcaster_channel,
-            &egress_tx,
-        )
+        .download_inner::<BroadcasterChannel, EgressSender, Error>(broadcaster_channel, &egress_tx)
         .await
     {
         Ok(download_fanout_output) => {
@@ -62,10 +59,14 @@ where
     where
         super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {
-        match send_helper(&mut self.download_fanout, self.broadcaster_channel, self.egress_tx).await {
-            Ok(download_fanout_output) => {
-                Ok(download_fanout_output)
-            }
+        match send_helper(
+            &mut self.download_fanout,
+            self.broadcaster_channel,
+            self.egress_tx,
+        )
+        .await
+        {
+            Ok(download_fanout_output) => Ok(download_fanout_output),
             Err(e) => {
                 let retry_fanout = e.get_retry_fanout(self.download_fanout);
                 Err((retry_fanout, e.into_inner()))
@@ -85,14 +86,24 @@ where
 {
     pub async fn send_returning_source_info<Error>(
         mut self,
-    ) -> Result<(SourceInfo, Consumers::Output), (Option<super::DownloadFanout<Source, Consumers>>, Error)>
+    ) -> Result<
+        (SourceInfo, Consumers::Output),
+        (Option<super::DownloadFanout<Source, Consumers>>, Error),
+    >
     where
         super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {
-        match send_helper(&mut self.download_fanout, self.broadcaster_channel, self.egress_tx).await {
-            Ok(download_fanout_output) => {
-                Ok((self.download_fanout.source.into_info(), download_fanout_output))
-            }
+        match send_helper(
+            &mut self.download_fanout,
+            self.broadcaster_channel,
+            self.egress_tx,
+        )
+        .await
+        {
+            Ok(download_fanout_output) => Ok((
+                self.download_fanout.source.into_info(),
+                download_fanout_output,
+            )),
             Err(e) => {
                 let retry_fanout = e.get_retry_fanout(self.download_fanout);
                 Err((retry_fanout, e.into_inner()))

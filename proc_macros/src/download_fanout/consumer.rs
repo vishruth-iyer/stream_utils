@@ -103,7 +103,7 @@ pub(crate) fn impl_consumer_group(
             )
             where
                 Channel: stream_utils::channel::Channel<bytes::Bytes>,
-                Channel::Receiver: 'static
+                Channel::Receiver: 'static,
             {
                 #(#create_consumer_futures)*
 

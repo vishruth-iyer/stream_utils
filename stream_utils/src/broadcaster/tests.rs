@@ -2,7 +2,12 @@ use itertools::Itertools;
 
 use super::Broadcaster;
 
-const TOKIO_CHANNEL: fn(usize) -> (tokio::sync::mpsc::Sender<i32>, tokio::sync::mpsc::Receiver<i32>) = tokio::sync::mpsc::channel::<i32>;
+const TOKIO_CHANNEL: fn(
+    usize,
+) -> (
+    tokio::sync::mpsc::Sender<i32>,
+    tokio::sync::mpsc::Receiver<i32>,
+) = tokio::sync::mpsc::channel::<i32>;
 
 #[tokio::test]
 async fn test_broadcaster_all_receivers_receive_all_messages_in_order() {

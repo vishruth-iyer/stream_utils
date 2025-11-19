@@ -1,8 +1,7 @@
 use tracing::info;
 
 use crate::{
-    broadcaster,
-    channel,
+    broadcaster, channel,
     download_fanout::{error::DownloadFanoutError, source::FanoutSource},
 };
 
