@@ -85,7 +85,7 @@ where
     let mut errors = Vec::with_capacity(downloads_count);
     for result in results {
         match result {
-            Ok((_, download_fanout_output)) => {
+            Ok(download_fanout_output) => {
                 outputs.push(download_fanout_output);
             }
             Err((retry_fanout, error)) => {
