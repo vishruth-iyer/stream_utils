@@ -1156,7 +1156,9 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "bytes",
+ "crossfire",
  "futures",
+ "kanal",
  "paste",
  "reqwest",
  "stream_utils",

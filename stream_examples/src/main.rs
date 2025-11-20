@@ -1,26 +1,53 @@
 use stream_utils::download_fanout;
 
-#[tokio::main]
-async fn main() {
-    run().await;
-    let _ = tokio::task::spawn(run()).await; // make sure it works with tokio::task::spawn's trait bounds
+macro_rules! test_channel {
+    (@nonsend $channel:path) => {
+        test_nonsend_channel($channel).await;
+    };
+    ($channel:path) => {
+        test_channel!(@nonsend $channel);
+        let _ = tokio::task::spawn(run($channel)).await;
+    };
 }
 
-async fn run() {
+#[tokio::main]
+async fn main() {
+    test_channel!(tokio::sync::mpsc::channel);
+    test_channel!(kanal::bounded_async);
+    test_channel!(@nonsend crossfire::spsc::bounded_async); // crossfire spsc channel does not have send bound on the sender
+    test_channel!(crossfire::mpsc::bounded_async);
+    test_channel!(crossfire::mpmc::bounded_async);
+}
+
+async fn test_nonsend_channel<Channel>(channel: Channel)
+where
+    Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone,
+    Channel::Receiver: 'static,
+{
+    run(channel.clone()).await; // base should always work
+    let local_set = tokio::task::LocalSet::new();
+    let _ = local_set.run_until(run(channel)).await; // make sure it works with local set
+}
+
+async fn run<Channel>(channel: Channel)
+where
+    Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone,
+    Channel::Receiver: 'static,
+{
     let download_fanout_consumers = DownloadFanoutConsumers::builder()
         .bytes_counter_1(BytesCounter::new())
-        .bytes_counter_2(BytesCounter::new_with_limit(32768))
-        .bytes_counter_3(BytesCounter::new_with_limit(16384))
-        .bytes_counter_4(BytesCounter::new_with_limit(8192))
-        .bytes_counter_5(BytesCounter::new_with_limit(4096))
-        .bytes_counter_6(BytesCounter::new_with_limit(2048))
-        .bytes_counter_7(BytesCounter::new_with_limit(1024))
-        // .bytes_counter_8(BytesCounter::new_with_limit(512))
-        // .bytes_counter_9(BytesCounter::new_with_limit(256))
-        // .bytes_counter_10(BytesCounter::new_with_limit(128))
-        // .bytes_counter_11(BytesCounter::new_with_limit(64))
-        // .bytes_counter_12(BytesCounter::new_with_limit(32))
-        // .bytes_counter_13(BytesCounter::new_with_limit(16))
+        .bytes_counter_2(BytesCounter::new())
+        .bytes_counter_3(BytesCounter::new())
+        .bytes_counter_4(BytesCounter::new())
+        .bytes_counter_5(BytesCounter::new())
+        .bytes_counter_6(BytesCounter::new())
+        .bytes_counter_7(BytesCounter::new())
+        .bytes_counter_8(BytesCounter::new())
+        .bytes_counter_9(BytesCounter::new())
+        .bytes_counter_10(BytesCounter::new())
+        .bytes_counter_11(BytesCounter::new())
+        .bytes_counter_12(BytesCounter::new())
+        .bytes_counter_13(BytesCounter::new())
         .build();
     let downloader_1 = download_fanout::DownloadFanout::new(
         Source::from(BytesSource(vec![
@@ -43,8 +70,7 @@ async fn run() {
     let mut fanouts = vec![downloader_1, downloader_2, downloader_3];
     let mut i = 0;
     let result = loop {
-        println!("try {i}");
-        match attempt_download(fanouts.into_iter()).await {
+        match attempt_download(fanouts.into_iter(), channel.clone()).await {
             Ok(outputs) => {
                 break Ok(outputs);
             }
@@ -60,11 +86,12 @@ async fn run() {
         i += 1;
         tokio::time::sleep(tokio::time::Duration::from_secs(i)).await;
     };
-    println!("{result:?}");
+    assert!(result.is_ok());
 }
 
-async fn attempt_download<Source, Consumers, Error>(
+async fn attempt_download<Source, Consumers, Channel, Error>(
     fanouts: impl Iterator<Item = download_fanout::DownloadFanout<Source, Consumers>>,
+    channel: Channel,
 ) -> Result<
     Vec<Consumers::Output>,
     (
@@ -75,13 +102,15 @@ async fn attempt_download<Source, Consumers, Error>(
 where
     Source: download_fanout::source::FanoutSource,
     Consumers: download_fanout::consumer::FanoutConsumerGroup,
+    Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone,
+    Channel::Receiver: 'static,
     download_fanout::error::DownloadFanoutError<Error>:
         From<Source::Error> + From<Consumers::Error>,
 {
     let results = futures::future::join_all(
         fanouts
             .into_iter()
-            .map(|fanout| fanout.download(tokio::sync::mpsc::channel).send()),
+            .map(|fanout| fanout.download(channel.clone()).send()),
     )
     .await;
     let downloads_count = results.len();
@@ -329,16 +358,16 @@ struct DownloadFanoutConsumers {
     bytes_counter_6: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
     #[builder(into)]
     bytes_counter_7: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_8: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_9: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_10: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_11: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_12: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    // #[builder(into)]
-    // bytes_counter_13: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_8: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_9: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_10: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_11: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_12: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
+    #[builder(into)]
+    bytes_counter_13: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
 }
