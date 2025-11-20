@@ -24,7 +24,7 @@ where
     Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone + 'static,
     Channel::Receiver: 'static,
 {
-    run(channel.clone()).await; // base should always work
+    run(channel.clone()).await; // running the future directly should always work
     let local_set = tokio::task::LocalSet::new();
     let _ = local_set.run_until(tokio::task::spawn_local(run(channel))).await; // make sure it works with spawn_local trait bounds
 }
@@ -34,6 +34,7 @@ where
     Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone,
     Channel::Receiver: 'static,
 {
+    // testing that an aribtrary number of consumers works
     let download_fanout_consumers = DownloadFanoutConsumers::builder()
         .bytes_counter_1(BytesCounter::new())
         .bytes_counter_2(BytesCounter::new())
