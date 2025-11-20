@@ -1,44 +1,103 @@
-pub struct Item(Result<bytes::Bytes, GenericError>);
+use crate::channel::receiver::Receiver;
 
-impl Item {
-    pub fn into_inner(self) -> Result<bytes::Bytes, GenericError> {
-        self.0
+pub trait EgressItem {
+    fn from_bytes(bytes: bytes::Bytes) -> Self;
+    fn error() -> Self;
+}
+
+impl EgressItem for Result<bytes::Bytes, GenericError> {
+    fn from_bytes(bytes: bytes::Bytes) -> Self {
+        Self::Ok(bytes)
+    }
+    fn error() -> Self {
+        Self::Err(GenericError)
     }
 }
 
-impl From<Result<bytes::Bytes, GenericError>> for Item {
-    fn from(value: Result<bytes::Bytes, GenericError>) -> Self {
-        Self(value)
+impl EgressItem for () {
+    fn from_bytes(_bytes: bytes::Bytes) -> Self {
+        ()
+    }
+    fn error() -> Self {
+        ()
     }
 }
 
-impl From<bytes::Bytes> for Item {
-    fn from(value: bytes::Bytes) -> Self {
-        Self(Ok(value))
+pub trait EgressSender {
+    type Item: EgressItem;
+    async fn send(&self, item: Self::Item) -> crate::channel::sender::Result;
+
+    fn send_from_broadcaster<'a, 'b, BroadcasterChannel>(
+        &'a self,
+        broadcaster: &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+    ) -> impl Future<Output = ()> + 'a
+    where
+        BroadcasterChannel: crate::channel::Channel<Item = bytes::Bytes>,
+        BroadcasterChannel::Receiver: 'static,
+    {
+        self._send_from_broadcaster(broadcaster).1
+    }
+    fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
+        &'a self,
+        broadcaster: &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+    ) -> (
+        &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+        impl Future<Output = ()> + 'a,
+    )
+    where
+        BroadcasterChannel: crate::channel::Channel<Item = bytes::Bytes>,
+        BroadcasterChannel::Receiver: 'static;
+}
+
+impl<Tx> EgressSender for Tx
+where
+    Tx: crate::channel::sender::Sender,
+    Tx::Item: EgressItem,
+{
+    type Item = Tx::Item;
+    async fn send(&self, item: Self::Item) -> crate::channel::sender::Result {
+        crate::channel::sender::Sender::send(self, item).await
+    }
+    fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
+        &'a self,
+        broadcaster: &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+    ) -> (
+        &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+        impl Future<Output = ()> + 'a,
+    )
+    where
+        BroadcasterChannel: crate::channel::Channel<Item = bytes::Bytes>,
+        BroadcasterChannel::Receiver: 'static,
+    {
+        let mut rx = broadcaster.subscribe();
+        let future = async move {
+            while let Some(chunk) = rx.recv().await {
+                self.send(Tx::Item::from_bytes(chunk)).await;
+            }
+        };
+        (broadcaster, future)
     }
 }
 
-impl From<GenericError> for Item {
-    fn from(value: GenericError) -> Self {
-        Self(Err(value))
+impl EgressSender for () {
+    type Item = ();
+    async fn send(&self, _item: Self::Item) -> crate::channel::sender::Result {
+        crate::channel::sender::Result::Failure
+    }
+    
+    fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
+        &'a self,
+        broadcaster: &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+    ) -> (
+        &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,
+        impl Future<Output = ()> + 'a,
+    )
+    where
+        BroadcasterChannel: crate::channel::Channel<Item = bytes::Bytes>,
+        BroadcasterChannel::Receiver: 'static {
+        (broadcaster, futures::future::ready(()))
     }
 }
-
-impl From<Item> for Result<bytes::Bytes, GenericError> {
-    fn from(value: Item) -> Self {
-        value.into_inner()
-    }
-}
-
-impl std::ops::Deref for Item {
-    type Target = Result<bytes::Bytes, GenericError>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub trait Sender: crate::channel::sender::Sender<Item = Item> {}
-impl<T> Sender for T where T: crate::channel::sender::Sender<Item = Item> {}
 
 #[derive(thiserror::Error, Debug)]
 #[error("an error occurred")]

@@ -13,7 +13,7 @@ pub struct DownloadFanoutDownload<
     source_info: std::marker::PhantomData<SourceInfo>,
 }
 
-async fn send_helper<Source, Consumers, BroadcasterChannel, EgressSender, Error>(
+async fn send_helper<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender, Error>(
     download_fanout: &mut super::DownloadFanout<Source, Consumers>,
     broadcaster_channel: BroadcasterChannel,
     egress_tx: EgressSender,
@@ -23,11 +23,12 @@ where
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     BroadcasterChannel::Receiver: 'static,
-    EgressSender: super::egress::Sender,
+    EgressItem: super::egress::EgressItem,
+    EgressSender: super::egress::EgressSender<Item = EgressItem>,
     super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
 {
     match download_fanout
-        .download_inner::<BroadcasterChannel, EgressSender, Error>(broadcaster_channel, &egress_tx)
+        .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(broadcaster_channel, &egress_tx)
         .await
     {
         Ok(download_fanout_output) => {
@@ -37,21 +38,22 @@ where
         Err(e) => {
             // notify egress receiver that an error occurred
             // for the egress multipart upload use case, this aborts the upload
-            let _ = egress_tx.send(super::egress::GenericError.into()).await;
+            let _ = egress_tx.send(EgressItem::error()).await;
             drop(egress_tx);
             Err(e)
         }
     }
 }
 
-impl<Source, Consumers, BroadcasterChannel, EgressSender>
+impl<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender>
     DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, ()>
 where
     Source: super::source::FanoutSource,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     BroadcasterChannel::Receiver: 'static,
-    EgressSender: super::egress::Sender,
+    EgressItem: super::egress::EgressItem,
+    EgressSender: super::egress::EgressSender<Item = EgressItem>,
 {
     pub async fn send<Error>(
         mut self,
@@ -75,14 +77,15 @@ where
     }
 }
 
-impl<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
+impl<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender, SourceInfo>
     DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
 where
     Source: super::source::FanoutSource + super::source::IntoInfo<SourceInfo>,
     Consumers: super::consumer::FanoutConsumerGroup,
     BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     BroadcasterChannel::Receiver: 'static,
-    EgressSender: super::egress::Sender,
+    EgressItem: super::egress::EgressItem,
+    EgressSender: channel::sender::Sender<Item = EgressItem>,
 {
     pub async fn send_returning_source_info<Error>(
         mut self,
@@ -115,12 +118,13 @@ where
 impl<Source, Consumers, BroadcasterChannel, SourceInfo>
     DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, (), SourceInfo>
 {
-    pub fn with_egress_tx<EgressSender>(
+    pub fn with_egress_tx<EgressItem, EgressSender>(
         self,
         egress_tx: EgressSender,
     ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender, SourceInfo>
     where
-        EgressSender: super::egress::Sender,
+        EgressSender: channel::sender::Sender<Item = EgressItem>,
+        EgressItem: super::egress::EgressItem,
     {
         DownloadFanoutDownload {
             download_fanout: self.download_fanout,
@@ -150,7 +154,7 @@ impl<Source, Consumers, BroadcasterChannel, EgressSender>
 }
 
 impl<Source, Consumers, BroadcasterChannel>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, channel::sender::NoOpSender<super::egress::Item>, ()>
+    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, (), ()>
 {
     pub(crate) fn new(
         download_fanout: super::DownloadFanout<Source, Consumers>,
@@ -159,7 +163,7 @@ impl<Source, Consumers, BroadcasterChannel>
         Self {
             download_fanout,
             broadcaster_channel,
-            egress_tx: channel::sender::NoOpSender::new(),
+            egress_tx: (),
             source_info: std::marker::PhantomData,
         }
     }

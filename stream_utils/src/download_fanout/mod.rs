@@ -32,7 +32,7 @@ impl<Source, Consumers> DownloadFanout<Source, Consumers> {
     pub fn download<BroadcasterChannel>(
         self,
         broadcaster_channel: BroadcasterChannel,
-    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, channel::sender::NoOpSender<egress::Item>, ()>
+    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, (), ()>
     where
         BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     {
@@ -46,7 +46,7 @@ where
     Consumers: consumer::FanoutConsumerGroup,
 {
     #[tracing::instrument(name = "download_fanout", skip_all)]
-    async fn download_inner<BroadcasterChannel, EgressSender, Error>(
+    async fn download_inner<BroadcasterChannel, EgressItem, EgressSender, Error>(
         &mut self,
         broadcaster_channel: BroadcasterChannel,
         egress_tx: &EgressSender,
@@ -54,7 +54,8 @@ where
     where
         BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
         BroadcasterChannel::Receiver: 'static,
-        EgressSender: egress::Sender,
+        EgressItem: egress::EgressItem,
+        EgressSender: egress::EgressSender<Item = EgressItem>,
         DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {
         let start = tokio::time::Instant::now();
