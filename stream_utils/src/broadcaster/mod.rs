@@ -31,13 +31,9 @@ pub enum BroadcastError {
     ReceiverFailure,
 }
 
-/// A collection of `mpsc` channels.
-///
-/// I explored other `mpmc`/`broadcast` channels but they all had issues with our use case:
-/// - most `mpmc` channels only have a single consumer pick up each message, here we want all consumers to pick up all messages
-/// - `tokio::sync::broadcast` has no backpressure on the sender, so if consumers are slow old messages will be dropped. here we want to guarantee that every consumer receives every message
+/// A collection of channels.
 #[derive(bon::Builder, Debug)]
-pub struct Broadcaster<T, Channel: channel::Channel<T>> {
+pub struct Broadcaster<Channel: channel::Channel> {
     #[builder(default)]
     senders: Vec<Channel::Sender>,
     #[builder(default = *BROADCASTER_DEFAULT_BUFFER_SIZE)]
@@ -47,9 +43,9 @@ pub struct Broadcaster<T, Channel: channel::Channel<T>> {
     channel: Channel,
 }
 
-impl<T, Channel> Broadcaster<T, Channel>
+impl<Channel> Broadcaster<Channel>
 where
-    Channel: channel::Channel<T>,
+    Channel: channel::Channel,
 {
     pub fn subscribe(&mut self) -> Channel::Receiver {
         let (tx, rx) = self.channel.create_channel(self.buffer_size);
@@ -62,12 +58,12 @@ where
     }
 }
 
-impl<T, Channel> Broadcaster<T, Channel>
+impl<Channel> Broadcaster<Channel>
 where
-    T: Clone,
-    Channel: channel::Channel<T>,
+    Channel: channel::Channel,
+    Channel::Item: Clone,
 {
-    pub async fn broadcast(&self, item: T) -> Result<(), BroadcastError> {
+    pub async fn broadcast(&self, item: Channel::Item) -> Result<(), BroadcastError> {
         tokio::select! {
             biased; // no need for random polling; always poll cancellation token first then broadcast
             _ = self.cancellation_token.cancelled() => {
@@ -79,7 +75,7 @@ where
         }
     }
 
-    pub async fn broadcast_and_prune(&mut self, item: T) -> Result<(), BroadcastError> {
+    pub async fn broadcast_and_prune(&mut self, item: Channel::Item) -> Result<(), BroadcastError> {
         let send_results = tokio::select! {
             biased; // no need for random polling; always poll cancellation token first then broadcast
             _ = self.cancellation_token.cancelled() => {
@@ -106,7 +102,7 @@ where
 
     pub async fn broadcast_from_stream<E>(
         &self,
-        mut stream: impl Stream<Item = Result<T, E>> + Unpin,
+        mut stream: impl Stream<Item = Result<Channel::Item, E>> + Unpin,
     ) -> Result<(), E> {
         while let Some(item) = stream.next().await.transpose()? {
             if let Err(BroadcastError::ReceiverFailure) = self.broadcast(item).await {
@@ -117,7 +113,7 @@ where
     }
 
     // private helper
-    async fn broadcast_item(&self, item: T) -> Vec<channel::sender::Result> {
+    async fn broadcast_item(&self, item: Channel::Item) -> Vec<channel::sender::Result> {
         // send messages concurrently
         join_all(self.senders.iter().map(|tx| {
             let item = item.clone();

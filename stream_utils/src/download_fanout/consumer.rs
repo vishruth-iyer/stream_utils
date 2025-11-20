@@ -5,12 +5,14 @@ use crate::{broadcaster, channel};
 pub trait FanoutConsumer {
     type Output;
     type Error;
-    async fn consume_from_fanout(
+    async fn consume_from_fanout<Rx>(
         &self,
-        rx: impl channel::receiver::Receiver<Bytes>,
+        rx: Rx,
         cancellation_token: broadcaster::CancellationToken,
         content_length: Option<u64>,
-    ) -> Result<Self::Output, Self::Error>;
+    ) -> Result<Self::Output, Self::Error>
+    where
+        Rx: channel::receiver::Receiver<Item = Bytes>;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -30,11 +32,11 @@ pub trait FanoutConsumerGroup {
     type Error;
     fn consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> impl Future<Output = Result<Self::Output, Self::Error>> + 'a
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static,
     {
         self._consume_from_fanout(download_broadcaster, content_length)
@@ -43,14 +45,14 @@ pub trait FanoutConsumerGroup {
     // the above is the only signature I want, but we need the below to tell the compiler that the future doesn't borrow the broadcaster
     fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        &'b mut broadcaster::Broadcaster<Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
     )
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static;
 }
 
@@ -59,14 +61,14 @@ impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::sync::Arc<
     type Error = ConsumerGroup::Error;
     fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        &'b mut broadcaster::Broadcaster<Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
     )
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static,
     {
         self.as_ref()
@@ -79,14 +81,14 @@ impl<ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup for std::rc::Rc<Con
     type Error = ConsumerGroup::Error;
     fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        &'b mut broadcaster::Broadcaster<Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
     )
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static,
     {
         self.as_ref()
@@ -101,14 +103,14 @@ impl<'consumer_group, ConsumerGroup: FanoutConsumerGroup> FanoutConsumerGroup
     type Error = ConsumerGroup::Error;
     fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        &'b mut broadcaster::Broadcaster<Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
     )
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static,
     {
         (*self)._consume_from_fanout(download_broadcaster, content_length)
@@ -124,14 +126,14 @@ where
     type Error = Consumer::Error;
     fn _consume_from_fanout<'a, 'b, Channel>(
         &'a self,
-        download_broadcaster: &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        download_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
         content_length: Option<u64>,
     ) -> (
-        &'b mut broadcaster::Broadcaster<Bytes, Channel>,
+        &'b mut broadcaster::Broadcaster<Channel>,
         impl Future<Output = Result<Self::Output, Self::Error>> + 'a,
     )
     where
-        Channel: channel::Channel<Bytes>,
+        Channel: channel::Channel<Item = Bytes>,
         Channel::Receiver: 'static,
     {
         let future = match self {

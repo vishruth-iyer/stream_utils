@@ -95,14 +95,14 @@ pub(crate) fn impl_consumer_group(
             type Error = #error_ty;
             fn _consume_from_fanout<'a, 'b, Channel>(
                 &'a self,
-                download_broadcaster: &'b mut stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
+                download_broadcaster: &'b mut stream_utils::broadcaster::Broadcaster<Channel>,
                 content_length: Option<u64>,
             ) -> (
-                &'b mut stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
+                &'b mut stream_utils::broadcaster::Broadcaster<Channel>,
                 impl std::future::Future<Output = Result<Self::Output, Self::Error>> + 'a,
             )
             where
-                Channel: stream_utils::channel::Channel<bytes::Bytes>,
+                Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
                 Channel::Receiver: 'static,
             {
                 #(#create_consumer_futures)*

@@ -3,7 +3,7 @@ use stream_utils::download_fanout;
 #[tokio::main]
 async fn main() {
     run().await;
-    tokio::task::spawn(run()).await;
+    let _ = tokio::task::spawn(run()).await;
 }
 
 async fn run() {
@@ -36,7 +36,7 @@ async fn run() {
     );
 
     let downloader_3 = download_fanout::DownloadFanout::new(
-        Source::from(UrlSource::from_url("https://unitedwifi.com".to_string())),
+        Source::from(UrlSource::from_url("https://thehive.ai/".to_string())),
         &download_fanout_consumers,
     );
 
@@ -134,12 +134,15 @@ impl BytesCounter {
 impl download_fanout::consumer::FanoutConsumer for BytesCounter {
     type Output = usize;
     type Error = Error;
-    async fn consume_from_fanout(
+    async fn consume_from_fanout<Rx>(
         &self,
-        mut rx: impl stream_utils::channel::receiver::Receiver<bytes::Bytes>,
+        mut rx: Rx,
         cancellation_token: stream_utils::broadcaster::CancellationToken,
         _content_length: Option<u64>,
-    ) -> Result<Self::Output, Self::Error> {
+    ) -> Result<Self::Output, Self::Error>
+    where
+        Rx: stream_utils::channel::receiver::Receiver<Item = bytes::Bytes>,
+    {
         let mut i = 0;
         while let Some(bytes) = rx.recv().await {
             i += bytes.len();
@@ -161,10 +164,13 @@ impl download_fanout::source::FanoutSource for BytesSource {
             self.0.iter().map(|bytes| bytes.len()).sum::<usize>() as u64
         ))
     }
-    async fn broadcast<Channel: stream_utils::channel::Channel<bytes::Bytes>>(
+    async fn broadcast<Channel>(
         &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
-    ) -> Result<(), Self::Error> {
+        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
+    ) -> Result<(), Self::Error>
+    where
+        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
+    {
         for chunk in &self.0 {
             let _ = broadcaster.broadcast(chunk.clone()).await;
         }
@@ -204,10 +210,13 @@ impl download_fanout::source::FanoutSource for UrlSource {
         self.response = Some(response);
         Ok(content_length)
     }
-    async fn broadcast<Channel: stream_utils::channel::Channel<bytes::Bytes>>(
+    async fn broadcast<Channel>(
         &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
-    ) -> Result<(), Self::Error> {
+        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
+    ) -> Result<(), Self::Error>
+    where
+        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
+    {
         let response = match self.response.take() {
             Some(response) => response,
             None => reqwest::Client::new()
@@ -255,10 +264,13 @@ impl download_fanout::source::FanoutSource for Source {
             Self::Url(url_source) => url_source.get_content_length().await,
         }
     }
-    async fn broadcast<Channel: stream_utils::channel::Channel<bytes::Bytes>>(
+    async fn broadcast<Channel>(
         &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<bytes::Bytes, Channel>,
-    ) -> Result<(), Self::Error> {
+        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
+    ) -> Result<(), Self::Error>
+    where
+        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
+    {
         match self {
             Self::Bytes(bytes_source) => bytes_source.broadcast(broadcaster).await,
             Self::Url(url_source) => url_source.broadcast(broadcaster).await,

@@ -37,8 +37,8 @@ impl std::ops::Deref for Item {
     }
 }
 
-pub trait Sender: crate::channel::sender::Sender<Item> {}
-impl<T> Sender for T where T: crate::channel::sender::Sender<Item> {}
+pub trait Sender: crate::channel::sender::Sender<Item = Item> {}
+impl<T> Sender for T where T: crate::channel::sender::Sender<Item = Item> {}
 
 #[derive(thiserror::Error, Debug)]
 #[error("an error occurred")]

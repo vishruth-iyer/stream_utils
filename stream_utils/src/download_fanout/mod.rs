@@ -32,9 +32,9 @@ impl<Source, Consumers> DownloadFanout<Source, Consumers> {
     pub fn download<BroadcasterChannel>(
         self,
         broadcaster_channel: BroadcasterChannel,
-    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, (), ()>
+    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, channel::sender::NoOpSender<egress::Item>, ()>
     where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
+        BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     {
         download::DownloadFanoutDownload::new(self, broadcaster_channel)
     }
@@ -52,7 +52,7 @@ where
         egress_tx: &EgressSender,
     ) -> Result<Consumers::Output, DownloadFanoutError<Error>>
     where
-        BroadcasterChannel: channel::Channel<bytes::Bytes>,
+        BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
         BroadcasterChannel::Receiver: 'static,
         EgressSender: egress::Sender,
         DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
