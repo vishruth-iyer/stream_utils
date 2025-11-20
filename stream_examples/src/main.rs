@@ -284,21 +284,9 @@ impl download_fanout::source::FanoutSource for Source {
     }
 }
 
-impl<'a> download_fanout::source::GetInfo<'a, &'a str> for UrlSource {
-    fn get_info(&self) -> &str {
-        &self.url
-    }
-}
-
-impl download_fanout::source::GetInfo<'static, String> for UrlSource {
-    fn get_info(&self) -> String {
-        self.url.clone()
-    }
-}
-
-impl download_fanout::source::IntoInfo<String> for UrlSource {
-    fn into_info(self) -> String {
-        self.url
+impl From<UrlSource> for String {
+    fn from(value: UrlSource) -> Self {
+        value.url
     }
 }
 

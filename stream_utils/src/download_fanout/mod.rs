@@ -21,18 +21,10 @@ impl<Source, Consumers> DownloadFanout<Source, Consumers> {
         Self { source, consumers }
     }
 
-    pub fn get_source_info<'a, SourceInfo>(&'a self) -> SourceInfo
-    where
-        Source: source::GetInfo<'a, SourceInfo>,
-        SourceInfo: 'a,
-    {
-        self.source.get_info()
-    }
-
     pub fn download<BroadcasterChannel>(
         self,
         broadcaster_channel: BroadcasterChannel,
-    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, (), ()>
+    ) -> download::DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, ()>
     where
         BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
     {
