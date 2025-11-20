@@ -3,7 +3,7 @@ use stream_utils::download_fanout;
 #[tokio::main]
 async fn main() {
     run().await;
-    let _ = tokio::task::spawn(run()).await;
+    let _ = tokio::task::spawn(run()).await; // make sure it works with tokio::task::spawn's trait bounds
 }
 
 async fn run() {
