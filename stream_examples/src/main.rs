@@ -6,7 +6,7 @@ macro_rules! test_channel {
     };
     ($channel:path) => {
         test_channel!(@nonsend $channel);
-        let _ = tokio::task::spawn(run($channel)).await;
+        let _ = tokio::task::spawn(run($channel)).await; // make sure it works with spawn trait bounds
     };
 }
 
@@ -14,19 +14,19 @@ macro_rules! test_channel {
 async fn main() {
     test_channel!(tokio::sync::mpsc::channel);
     test_channel!(kanal::bounded_async);
-    test_channel!(@nonsend crossfire::spsc::bounded_async); // crossfire spsc channel does not have send bound on the sender
+    test_channel!(@nonsend crossfire::spsc::bounded_async); // crossfire spsc sender is !Send
     test_channel!(crossfire::mpsc::bounded_async);
     test_channel!(crossfire::mpmc::bounded_async);
 }
 
 async fn test_nonsend_channel<Channel>(channel: Channel)
 where
-    Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone,
+    Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone + 'static,
     Channel::Receiver: 'static,
 {
     run(channel.clone()).await; // base should always work
     let local_set = tokio::task::LocalSet::new();
-    let _ = local_set.run_until(run(channel)).await; // make sure it works with local set
+    let _ = local_set.run_until(tokio::task::spawn_local(run(channel))).await; // make sure it works with spawn_local trait bounds
 }
 
 async fn run<Channel>(channel: Channel)
