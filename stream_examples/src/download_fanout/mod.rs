@@ -13,14 +13,6 @@ macro_rules! test_channel {
     };
 }
 
-pub(super) async fn main() {
-    test_channel!(tokio::sync::mpsc::channel);
-    test_channel!(kanal::bounded_async);
-    test_channel!(@nonsend crossfire::spsc::bounded_async); // crossfire spsc sender is !Send
-    test_channel!(crossfire::mpsc::bounded_async);
-    test_channel!(crossfire::mpmc::bounded_async);
-}
-
 async fn test_nonsend_channel<Channel>(channel: Channel)
 where
     Channel: stream_utils::channel::Channel<Item = bytes::Bytes> + Clone + 'static,
@@ -33,6 +25,14 @@ where
             tokio::task::spawn_local(run(channel)).await // make sure it works with spawn_local trait bounds
         })
         .await;
+}
+
+pub(super) async fn main() {
+    test_channel!(tokio::sync::mpsc::channel);
+    test_channel!(kanal::bounded_async);
+    test_channel!(@nonsend crossfire::spsc::bounded_async); // crossfire spsc sender is !Send
+    test_channel!(crossfire::mpsc::bounded_async);
+    test_channel!(crossfire::mpmc::bounded_async);
 }
 
 async fn run<Channel>(channel: Channel)
