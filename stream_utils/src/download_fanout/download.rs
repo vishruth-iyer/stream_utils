@@ -11,34 +11,36 @@ pub struct DownloadFanoutDownload<
     egress_tx: EgressSender,
 }
 
-async fn send_helper<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender, Error>(
-    download_fanout: &mut super::DownloadFanout<Source, Consumers>,
-    broadcaster_channel: BroadcasterChannel,
-    egress_tx: EgressSender,
-) -> Result<Consumers::Output, super::error::DownloadFanoutError<Error>>
-where
-    Source: super::source::FanoutSource,
-    Consumers: super::consumer::FanoutConsumerGroup,
-    BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
-    BroadcasterChannel::Receiver: 'static,
-    EgressItem: super::egress::EgressItem,
-    EgressSender: super::egress::EgressSender<Item = EgressItem>,
-    super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
+impl<Source, Consumers, BroadcasterChannel>
+    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, ()>
 {
-    match download_fanout
-        .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(broadcaster_channel, &egress_tx)
-        .await
-    {
-        Ok(download_fanout_output) => {
-            drop(egress_tx);
-            Ok(download_fanout_output)
+    pub(crate) fn new(
+        download_fanout: super::DownloadFanout<Source, Consumers>,
+        broadcaster_channel: BroadcasterChannel,
+    ) -> Self {
+        Self {
+            download_fanout,
+            broadcaster_channel,
+            egress_tx: (),
         }
-        Err(e) => {
-            // notify egress receiver that an error occurred
-            // for the egress multipart upload use case, this aborts the upload
-            let _ = egress_tx.send(EgressItem::error()).await;
-            drop(egress_tx);
-            Err(e)
+    }
+}
+
+impl<Source, Consumers, BroadcasterChannel, OldEgressSender>
+    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, OldEgressSender>
+{
+    pub fn with_egress_tx<EgressItem, EgressSender>(
+        self,
+        egress_tx: EgressSender,
+    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender>
+    where
+        EgressSender: channel::sender::Sender<Item = EgressItem>,
+        EgressItem: super::egress::EgressItem,
+    {
+        DownloadFanoutDownload {
+            download_fanout: self.download_fanout,
+            broadcaster_channel: self.broadcaster_channel,
+            egress_tx,
         }
     }
 }
@@ -103,36 +105,34 @@ where
     }
 }
 
-impl<Source, Consumers, BroadcasterChannel, OldEgressSender>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, OldEgressSender>
+async fn send_helper<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender, Error>(
+    download_fanout: &mut super::DownloadFanout<Source, Consumers>,
+    broadcaster_channel: BroadcasterChannel,
+    egress_tx: EgressSender,
+) -> Result<Consumers::Output, super::error::DownloadFanoutError<Error>>
+where
+    Source: super::source::FanoutSource,
+    Consumers: super::consumer::FanoutConsumerGroup,
+    BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
+    BroadcasterChannel::Receiver: 'static,
+    EgressItem: super::egress::EgressItem,
+    EgressSender: super::egress::EgressSender<Item = EgressItem>,
+    super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
 {
-    pub fn with_egress_tx<EgressItem, EgressSender>(
-        self,
-        egress_tx: EgressSender,
-    ) -> DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender>
-    where
-        EgressSender: channel::sender::Sender<Item = EgressItem>,
-        EgressItem: super::egress::EgressItem,
+    match download_fanout
+        .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(broadcaster_channel, &egress_tx)
+        .await
     {
-        DownloadFanoutDownload {
-            download_fanout: self.download_fanout,
-            broadcaster_channel: self.broadcaster_channel,
-            egress_tx,
+        Ok(download_fanout_output) => {
+            drop(egress_tx);
+            Ok(download_fanout_output)
         }
-    }
-}
-
-impl<Source, Consumers, BroadcasterChannel>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, ()>
-{
-    pub(crate) fn new(
-        download_fanout: super::DownloadFanout<Source, Consumers>,
-        broadcaster_channel: BroadcasterChannel,
-    ) -> Self {
-        Self {
-            download_fanout,
-            broadcaster_channel,
-            egress_tx: (),
+        Err(e) => {
+            // notify egress receiver that an error occurred
+            // for the egress multipart upload use case, this aborts the upload
+            let _ = egress_tx.send(EgressItem::error()).await;
+            drop(egress_tx);
+            Err(e)
         }
     }
 }
