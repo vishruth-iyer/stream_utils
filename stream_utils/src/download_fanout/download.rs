@@ -73,18 +73,7 @@ where
             }
         }
     }
-}
 
-impl<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender>
-    DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender>
-where
-    Source: super::source::FanoutSource,
-    Consumers: super::consumer::FanoutConsumerGroup,
-    BroadcasterChannel: channel::Channel<Item = bytes::Bytes>,
-    BroadcasterChannel::Receiver: 'static,
-    EgressItem: super::egress::EgressItem,
-    EgressSender: channel::sender::Sender<Item = EgressItem>,
-{
     pub async fn send_returning_source_info<SourceInfo, Error>(
         mut self,
     ) -> Result<
