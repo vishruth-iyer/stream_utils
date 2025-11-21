@@ -1,1 +1,1 @@
-workspace = { members = ["proc_macros", "stream_utils", "stream_examples"] }
+workspace = { members = ["stream_utils_derive", "stream_utils", "stream_examples"] }

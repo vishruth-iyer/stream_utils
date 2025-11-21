@@ -38,7 +38,7 @@ impl download_fanout::consumer::FanoutConsumer for BytesCounter {
     }
 }
 
-#[derive(bon::Builder, stream_utils::proc_macros::FanoutConsumerGroup, Clone)]
+#[derive(bon::Builder, stream_utils::FanoutConsumerGroup, Clone)]
 #[fanout_consumer_group_error_ty(super::Error)]
 #[fanout_consumer_group_output_derive(Debug)]
 pub(super) struct DownloadFanoutConsumers {
