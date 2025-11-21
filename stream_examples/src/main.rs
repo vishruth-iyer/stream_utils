@@ -122,7 +122,7 @@ where
     let results = futures::future::join_all(
         fanouts
             .into_iter()
-            .map(|fanout| fanout.download(channel.clone()).send()),
+            .map(|fanout| fanout.download(channel.clone()).send(1)),
     )
     .await;
     let downloads_count = results.len();
