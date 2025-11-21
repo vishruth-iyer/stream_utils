@@ -1,5 +1,3 @@
-use tracing::info;
-
 use crate::{
     broadcaster, channel,
     download_fanout::{error::DownloadFanoutError, source::FanoutSource},
@@ -37,7 +35,7 @@ where
     Source: FanoutSource,
     Consumers: consumer::FanoutConsumerGroup,
 {
-    #[tracing::instrument(name = "download_fanout", skip_all)]
+    #[cfg_attr(feature = "tracing", tracing::instrument(name = "download_fanout", skip_all))]
     async fn download_inner<BroadcasterChannel, EgressItem, EgressSender, Error>(
         &mut self,
         broadcaster_channel: BroadcasterChannel,
@@ -51,6 +49,7 @@ where
         EgressSender: egress::EgressSender<Item = EgressItem>,
         DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
     {
+        #[cfg(feature = "tracing")]
         let start = tokio::time::Instant::now();
 
         let content_length = self.source.get_content_length().await?;
@@ -73,7 +72,8 @@ where
         let (download_result, subscriber_output, _) =
             tokio::join!(download_broadcast_future, subscribers_future, egress_future);
 
-        info!(
+        #[cfg(feature = "tracing")]
+        tracing::info!(
             response_time = start.elapsed().as_millis(),
             "done downloading bytes and sending to subscribers",
         );

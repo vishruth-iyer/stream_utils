@@ -4,21 +4,29 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bon = "3.8.1"
-bytes = "1.10.1"
-crossfire = "2.1.7"
-futures = "0.3.31"
-itertools = "0.14.0"
-kanal = "0.1.1"
-thiserror = "2.0.17"
-tokio = { version = "1.48.0", features = ["full"] }
-tokio-util = { version = "0.7.17", features = ["io", "io-util"] }
-tracing = "0.1.41"
+bon = { version = "3.8.1", optional = true }
+bytes = { version = "1.10.1", optional = true }
+crossfire = { version = "2.1.7", optional = true }
+futures = { version = "0.3.31", optional = true }
+kanal = { version = "0.1.1", optional = true }
+thiserror = { version = "2.0.17", optional = true }
+tokio = { version = "1.48.0", optional = true }
+tokio-util = { version = "0.7.17", optional = true, features = ["io", "io-util"] }
+tracing = { version = "0.1.41", optional = true }
 stream_utils_derive = { optional = true, path = "../stream_utils_derive" }
+serde = { version = "1.0.228", optional = true }
+
+[dev-dependencies]
+itertools = "0.14.0"
 
 [features]
-default = ["tokio"]
-tokio = []
-crossfire = []
-kanal = []
+default = ["broadcaster", "derive", "download_fanout", "serializer", "tracing"]
+
+broadcaster = ["dep:bon", "dep:futures", "dep:tokio", "dep:tokio-util"]
+crossfire = ["dep:crossfire"]
 derive = ["stream_utils_derive"]
+download_fanout = ["broadcaster", "dep:bytes", "dep:futures", "dep:thiserror", "dep:tokio", "dep:tokio-util"]
+kanal = ["dep:kanal"]
+serializer = ["dep:futures", "dep:serde"]
+tokio = ["dep:tokio"]
+tracing = ["dep:tracing"]
