@@ -1165,7 +1165,6 @@ dependencies = [
  "futures",
  "itertools",
  "kanal",
- "paste",
  "stream_utils_derive",
  "thiserror",
  "tokio",
