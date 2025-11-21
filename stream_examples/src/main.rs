@@ -1,5 +1,8 @@
 use stream_utils::download_fanout;
 
+mod consumer;
+mod source;
+
 macro_rules! test_channel {
     (@nonsend $channel:path) => {
         test_nonsend_channel($channel).await;
@@ -35,23 +38,23 @@ where
     Channel::Receiver: 'static,
 {
     // testing that an aribtrary number of consumers works
-    let download_fanout_consumers = DownloadFanoutConsumers::builder()
-        .bytes_counter_1(BytesCounter::new())
-        .bytes_counter_2(BytesCounter::new())
-        .bytes_counter_3(BytesCounter::new())
-        .bytes_counter_4(BytesCounter::new())
-        .bytes_counter_5(BytesCounter::new())
-        .bytes_counter_6(BytesCounter::new())
-        .bytes_counter_7(BytesCounter::new())
-        .bytes_counter_8(BytesCounter::new())
-        .bytes_counter_9(BytesCounter::new())
-        .bytes_counter_10(BytesCounter::new())
-        .bytes_counter_11(BytesCounter::new())
-        .bytes_counter_12(BytesCounter::new())
-        .bytes_counter_13(BytesCounter::new())
+    let download_fanout_consumers = consumer::DownloadFanoutConsumers::builder()
+        .bytes_counter_1(consumer::BytesCounter::new())
+        .bytes_counter_2(consumer::BytesCounter::new())
+        .bytes_counter_3(consumer::BytesCounter::new())
+        .bytes_counter_4(consumer::BytesCounter::new())
+        .bytes_counter_5(consumer::BytesCounter::new())
+        .bytes_counter_6(consumer::BytesCounter::new())
+        .bytes_counter_7(consumer::BytesCounter::new())
+        .bytes_counter_8(consumer::BytesCounter::new())
+        .bytes_counter_9(consumer::BytesCounter::new())
+        .bytes_counter_10(consumer::BytesCounter::new())
+        .bytes_counter_11(consumer::BytesCounter::new())
+        .bytes_counter_12(consumer::BytesCounter::new())
+        .bytes_counter_13(consumer::BytesCounter::new())
         .build();
     let downloader_1 = download_fanout::DownloadFanout::new(
-        Source::from(BytesSource(vec![
+        source::Source::from(source::BytesSource::from(vec![
             bytes::Bytes::from_static(&[0u8; 10]),
             bytes::Bytes::from_static(&[0u8; 20]),
             bytes::Bytes::from_static(&[0u8; 20]),
@@ -59,12 +62,12 @@ where
         &download_fanout_consumers,
     );
     let downloader_2 = download_fanout::DownloadFanout::new(
-        Source::from(BytesSource(vec![bytes::Bytes::from_static(&[0u8; 10])])),
+        source::Source::from(source::BytesSource::from(vec![bytes::Bytes::from_static(&[0u8; 10])])),
         &download_fanout_consumers,
     );
 
     let downloader_3 = download_fanout::DownloadFanout::new(
-        Source::from(UrlSource::from_url("https://thehive.ai/".to_string())),
+        source::Source::from(source::UrlSource::from_url("https://thehive.ai/".to_string())),
         &download_fanout_consumers,
     );
 
@@ -147,179 +150,6 @@ where
     }
 }
 
-#[derive(Clone, Copy)]
-struct BytesCounter {
-    limit: usize,
-}
-
-impl BytesCounter {
-    fn new() -> Self {
-        Self::new_with_limit(usize::MAX)
-    }
-    fn new_with_limit(limit: usize) -> Self {
-        Self { limit }
-    }
-}
-
-impl download_fanout::consumer::FanoutConsumer for BytesCounter {
-    type Output = usize;
-    type Error = Error;
-    async fn consume_from_fanout<Rx>(
-        &self,
-        mut rx: Rx,
-        cancellation_token: stream_utils::broadcaster::CancellationToken,
-        _content_length: Option<u64>,
-    ) -> Result<Self::Output, Self::Error>
-    where
-        Rx: stream_utils::channel::receiver::Receiver<Item = bytes::Bytes>,
-    {
-        let mut i = 0;
-        while let Some(bytes) = rx.recv().await {
-            i += bytes.len();
-            if i > self.limit {
-                cancellation_token.cancel();
-                return Err(Error("too big".to_string()));
-            }
-        }
-        Ok(i)
-    }
-}
-
-struct BytesSource(Vec<bytes::Bytes>);
-
-impl download_fanout::source::FanoutSource for BytesSource {
-    type Error = Error;
-    async fn get_content_length(&mut self) -> Result<Option<u64>, Self::Error> {
-        Ok(Some(
-            self.0.iter().map(|bytes| bytes.len()).sum::<usize>() as u64
-        ))
-    }
-    async fn broadcast<Channel>(
-        &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
-    ) -> Result<(), Self::Error>
-    where
-        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
-    {
-        for chunk in &self.0 {
-            let _ = broadcaster.broadcast(chunk.clone()).await;
-        }
-        Ok(())
-    }
-    fn reset(self) -> Option<Self> {
-        Some(self)
-    }
-}
-
-struct UrlSource {
-    url: String,
-    response: Option<reqwest::Response>,
-}
-
-impl UrlSource {
-    fn from_url(url: String) -> Self {
-        Self {
-            url,
-            response: None,
-        }
-    }
-}
-
-impl download_fanout::source::FanoutSource for UrlSource {
-    type Error = Error;
-    async fn get_content_length(&mut self) -> Result<Option<u64>, Self::Error> {
-        if let Some(response) = &self.response {
-            return Ok(response.content_length());
-        }
-        let response = reqwest::Client::new()
-            .get(&self.url)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        let content_length = response.content_length();
-        self.response = Some(response);
-        Ok(content_length)
-    }
-    async fn broadcast<Channel>(
-        &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
-    ) -> Result<(), Self::Error>
-    where
-        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
-    {
-        let response = match self.response.take() {
-            Some(response) => response,
-            None => reqwest::Client::new()
-                .get(&self.url)
-                .send()
-                .await
-                .map_err(|e| e.to_string())?,
-        };
-        broadcaster
-            .broadcast_from_stream(response.bytes_stream())
-            .await
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    }
-    fn reset(self) -> Option<Self> {
-        Some(Self {
-            url: self.url,
-            response: None,
-        })
-    }
-}
-
-enum Source {
-    Bytes(BytesSource),
-    Url(UrlSource),
-}
-
-impl From<BytesSource> for Source {
-    fn from(value: BytesSource) -> Self {
-        Self::Bytes(value)
-    }
-}
-
-impl From<UrlSource> for Source {
-    fn from(value: UrlSource) -> Self {
-        Self::Url(value)
-    }
-}
-
-impl download_fanout::source::FanoutSource for Source {
-    type Error = Error;
-    async fn get_content_length(&mut self) -> Result<Option<u64>, Self::Error> {
-        match self {
-            Self::Bytes(bytes_source) => bytes_source.get_content_length().await,
-            Self::Url(url_source) => url_source.get_content_length().await,
-        }
-    }
-    async fn broadcast<Channel>(
-        &mut self,
-        broadcaster: stream_utils::broadcaster::Broadcaster<Channel>,
-    ) -> Result<(), Self::Error>
-    where
-        Channel: stream_utils::channel::Channel<Item = bytes::Bytes>,
-    {
-        match self {
-            Self::Bytes(bytes_source) => bytes_source.broadcast(broadcaster).await,
-            Self::Url(url_source) => url_source.broadcast(broadcaster).await,
-        }
-    }
-    fn reset(self) -> Option<Self> {
-        match self {
-            Self::Bytes(bytes_source) => bytes_source.reset().map(Self::Bytes),
-            Self::Url(url_source) => url_source.reset().map(Self::Url),
-        }
-    }
-}
-
-impl From<UrlSource> for String {
-    fn from(value: UrlSource) -> Self {
-        value.url
-    }
-}
-
 #[derive(Debug)]
 struct Error(String);
 
@@ -339,36 +169,4 @@ impl From<Error> for download_fanout::error::DownloadFanoutError<Error> {
     fn from(value: Error) -> Self {
         Self::RetryableError(value)
     }
-}
-
-#[derive(bon::Builder, stream_utils::proc_macros::FanoutConsumerGroup, Clone)]
-#[fanout_consumer_group_error_ty(Error)]
-#[fanout_consumer_group_output_derive(Debug)]
-struct DownloadFanoutConsumers {
-    #[builder(into)]
-    bytes_counter_1: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_2: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_3: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_4: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_5: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_6: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_7: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_8: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_9: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_10: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_11: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_12: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
-    #[builder(into)]
-    bytes_counter_13: download_fanout::consumer::ConsumerOrResolved<BytesCounter>,
 }
