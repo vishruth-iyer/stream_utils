@@ -52,6 +52,7 @@ where
 {
     pub async fn send<Error>(
         mut self,
+        broadcaster_buffer_size: usize,
     ) -> Result<Consumers::Output, (Option<super::DownloadFanout<Source, Consumers>>, Error)>
     where
         super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
@@ -59,6 +60,7 @@ where
         match send_helper(
             &mut self.download_fanout,
             self.broadcaster_channel,
+            broadcaster_buffer_size,
             self.egress_tx,
         )
         .await
@@ -73,6 +75,7 @@ where
 
     pub async fn send_returning_source_info<SourceInfo, Error>(
         mut self,
+        broadcaster_buffer_size: usize,
     ) -> Result<
         (SourceInfo, Consumers::Output),
         (Option<super::DownloadFanout<Source, Consumers>>, Error),
@@ -84,6 +87,7 @@ where
         match send_helper(
             &mut self.download_fanout,
             self.broadcaster_channel,
+            broadcaster_buffer_size,
             self.egress_tx,
         )
         .await
@@ -103,6 +107,7 @@ where
 async fn send_helper<Source, Consumers, BroadcasterChannel, EgressItem, EgressSender, Error>(
     download_fanout: &mut super::DownloadFanout<Source, Consumers>,
     broadcaster_channel: BroadcasterChannel,
+    broadcaster_buffer_size: usize,
     egress_tx: EgressSender,
 ) -> Result<Consumers::Output, super::error::DownloadFanoutError<Error>>
 where
@@ -117,6 +122,7 @@ where
     match download_fanout
         .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(
             broadcaster_channel,
+            broadcaster_buffer_size,
             &egress_tx,
         )
         .await

@@ -41,6 +41,7 @@ where
     async fn download_inner<BroadcasterChannel, EgressItem, EgressSender, Error>(
         &mut self,
         broadcaster_channel: BroadcasterChannel,
+        broadcaster_buffer_size: usize,
         egress_tx: &EgressSender,
     ) -> Result<Consumers::Output, DownloadFanoutError<Error>>
     where
@@ -56,6 +57,7 @@ where
 
         let mut download_broadcaster = broadcaster::Broadcaster::builder()
             .channel(broadcaster_channel)
+            .buffer_size(broadcaster_buffer_size)
             .build();
 
         // create subscriber futures

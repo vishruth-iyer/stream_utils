@@ -2,14 +2,6 @@ use futures::{Stream, StreamExt, future::join_all};
 
 use crate::channel::{self, sender::Sender};
 
-static BROADCASTER_DEFAULT_BUFFER_SIZE: std::sync::LazyLock<usize> =
-    std::sync::LazyLock::new(|| {
-        std::env::var("BROADCASTER_DEFAULT_BUFFER_SIZE")
-            .ok()
-            .and_then(|var| var.parse::<usize>().ok())
-            .unwrap_or(1)
-    });
-
 #[derive(Default, Debug, Clone)]
 pub struct CancellationToken(tokio_util::sync::CancellationToken);
 
@@ -34,13 +26,12 @@ pub enum BroadcastError {
 /// A collection of channels.
 #[derive(bon::Builder, Debug)]
 pub struct Broadcaster<Channel: channel::Channel> {
-    #[builder(default)]
-    senders: Vec<Channel::Sender>,
-    #[builder(default = *BROADCASTER_DEFAULT_BUFFER_SIZE)]
+    channel: Channel,
     buffer_size: usize,
     #[builder(default)]
+    senders: Vec<Channel::Sender>,
+    #[builder(default)]
     cancellation_token: CancellationToken,
-    channel: Channel,
 }
 
 impl<Channel> Broadcaster<Channel>
