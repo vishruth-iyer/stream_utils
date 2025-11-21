@@ -94,7 +94,8 @@ impl EgressSender for () {
     )
     where
         BroadcasterChannel: crate::channel::Channel<Item = bytes::Bytes>,
-        BroadcasterChannel::Receiver: 'static {
+        BroadcasterChannel::Receiver: 'static,
+    {
         (broadcaster, futures::future::ready(()))
     }
 }
