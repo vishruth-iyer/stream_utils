@@ -29,7 +29,9 @@ where
 {
     run(channel.clone()).await; // running the future directly should always work
     let local_set = tokio::task::LocalSet::new();
-    let _ = local_set.run_until(tokio::task::spawn_local(run(channel))).await; // make sure it works with spawn_local trait bounds
+    let _ = local_set.run_until(async {
+        tokio::task::spawn_local(run(channel)).await // make sure it works with spawn_local trait bounds
+    }).await;
 }
 
 async fn run<Channel>(channel: Channel)

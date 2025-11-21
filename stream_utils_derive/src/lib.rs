@@ -5,10 +5,10 @@ mod download_fanout;
     attributes(fanout_consumer_group_error_ty, fanout_consumer_group_output_derive)
 )]
 pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let consumer_group_struct = syn::parse_macro_input!(input as syn::ItemStruct);
+    let consumer_group = syn::parse_macro_input!(input as syn::DeriveInput);
     let mut error_ty = None;
     let mut fanout_consumer_group_output_derives = None;
-    for attr in &consumer_group_struct.attrs {
+    for attr in &consumer_group.attrs {
         if attr
             .meta
             .path()
@@ -35,15 +35,15 @@ pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macr
     }
     let error_ty =
         error_ty.expect("Error type must be specified with #[fanout_consumer_group_error_ty(...)]");
-    let output_struct_ident = quote::format_ident!("{}Output", consumer_group_struct.ident);
+    let output_struct_ident = quote::format_ident!("{}Output", consumer_group.ident);
     let consumer_group_impl = download_fanout::consumer::impl_consumer_group(
-        &consumer_group_struct,
+        &consumer_group,
         &output_struct_ident,
         &error_ty,
     );
     let consumer_group_output_struct =
-        download_fanout::consumer::create_consumer_group_output_struct(
-            consumer_group_struct,
+        download_fanout::consumer::create_consumer_group_output(
+            consumer_group,
             output_struct_ident,
             fanout_consumer_group_output_derives,
         );
