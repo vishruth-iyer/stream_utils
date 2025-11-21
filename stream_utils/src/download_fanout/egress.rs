@@ -84,7 +84,7 @@ impl EgressSender for () {
     async fn send(&self, _item: Self::Item) -> crate::channel::sender::Result {
         crate::channel::sender::Result::Failure
     }
-    
+
     fn _send_from_broadcaster<'a, 'b, BroadcasterChannel>(
         &'a self,
         broadcaster: &'b mut crate::broadcaster::Broadcaster<BroadcasterChannel>,

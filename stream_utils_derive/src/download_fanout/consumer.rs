@@ -21,11 +21,13 @@ pub(crate) fn create_consumer_group_output(
             todo!("Unions not currently supported");
         }
     }
-    
+
     consumer_group_output.ident = output_ident;
     consumer_group_output.attrs.clear();
     if let Some(fanout_consumer_group_output_derives) = fanout_consumer_group_output_derives {
-        consumer_group_output.attrs.push(fanout_consumer_group_output_derives);
+        consumer_group_output
+            .attrs
+            .push(fanout_consumer_group_output_derives);
     }
 
     consumer_group_output
@@ -37,15 +39,16 @@ pub(crate) fn impl_consumer_group(
     error_ty: &syn::Type,
 ) -> syn::ItemImpl {
     let consumer_group_ident = &consumer_group.ident;
-    let (impl_generics, ty_generics, where_clause) =
-        consumer_group.generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = consumer_group.generics.split_for_impl();
 
     match &consumer_group.data {
         syn::Data::Struct(consumer_group_struct) => {
-            let mut create_consumer_futures = Vec::with_capacity(consumer_group_struct.fields.len());
+            let mut create_consumer_futures =
+                Vec::with_capacity(consumer_group_struct.fields.len());
             let mut consumer_future_idents = Vec::with_capacity(consumer_group_struct.fields.len());
             let mut consumer_result_idents = Vec::with_capacity(consumer_group_struct.fields.len());
-            let mut output_struct_init_lines = Vec::with_capacity(consumer_group_struct.fields.len());
+            let mut output_struct_init_lines =
+                Vec::with_capacity(consumer_group_struct.fields.len());
             for member in consumer_group_struct.fields.members() {
                 let (
                     consumer_member,

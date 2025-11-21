@@ -1,11 +1,6 @@
 use crate::channel;
 
-pub struct DownloadFanoutDownload<
-    Source,
-    Consumers,
-    BroadcasterChannel,
-    EgressSender,
-> {
+pub struct DownloadFanoutDownload<Source, Consumers, BroadcasterChannel, EgressSender> {
     download_fanout: super::DownloadFanout<Source, Consumers>,
     broadcaster_channel: BroadcasterChannel,
     egress_tx: EgressSender,
@@ -120,7 +115,10 @@ where
     super::error::DownloadFanoutError<Error>: From<Source::Error> + From<Consumers::Error>,
 {
     match download_fanout
-        .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(broadcaster_channel, &egress_tx)
+        .download_inner::<BroadcasterChannel, EgressItem, EgressSender, Error>(
+            broadcaster_channel,
+            &egress_tx,
+        )
         .await
     {
         Ok(download_fanout_output) => {

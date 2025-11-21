@@ -41,12 +41,11 @@ pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macr
         &output_struct_ident,
         &error_ty,
     );
-    let consumer_group_output_struct =
-        download_fanout::consumer::create_consumer_group_output(
-            consumer_group,
-            output_struct_ident,
-            fanout_consumer_group_output_derives,
-        );
+    let consumer_group_output_struct = download_fanout::consumer::create_consumer_group_output(
+        consumer_group,
+        output_struct_ident,
+        fanout_consumer_group_output_derives,
+    );
     let output = quote::quote! {
         #consumer_group_impl
         #consumer_group_output_struct

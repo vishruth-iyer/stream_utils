@@ -29,9 +29,11 @@ where
 {
     run(channel.clone()).await; // running the future directly should always work
     let local_set = tokio::task::LocalSet::new();
-    let _ = local_set.run_until(async {
-        tokio::task::spawn_local(run(channel)).await // make sure it works with spawn_local trait bounds
-    }).await;
+    let _ = local_set
+        .run_until(async {
+            tokio::task::spawn_local(run(channel)).await // make sure it works with spawn_local trait bounds
+        })
+        .await;
 }
 
 async fn run<Channel>(channel: Channel)
@@ -64,12 +66,16 @@ where
         &download_fanout_consumers,
     );
     let downloader_2 = download_fanout::DownloadFanout::new(
-        source::Source::from(source::BytesSource::from(vec![bytes::Bytes::from_static(&[0u8; 10])])),
+        source::Source::from(source::BytesSource::from(vec![bytes::Bytes::from_static(
+            &[0u8; 10],
+        )])),
         &download_fanout_consumers,
     );
 
     let downloader_3 = download_fanout::DownloadFanout::new(
-        source::Source::from(source::UrlSource::from_url("https://thehive.ai/".to_string())),
+        source::Source::from(source::UrlSource::from_url(
+            "https://thehive.ai/".to_string(),
+        )),
         &download_fanout_consumers,
     );
 
