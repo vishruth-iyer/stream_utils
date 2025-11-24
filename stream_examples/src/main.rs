@@ -1,8 +1,8 @@
-mod download_fanout;
+mod fanout;
 mod serializer;
 
 #[tokio::main]
 async fn main() {
-    download_fanout::main().await;
+    fanout::main().await;
     serializer::main().await;
 }

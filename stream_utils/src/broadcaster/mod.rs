@@ -91,7 +91,18 @@ where
         Ok(())
     }
 
-    pub async fn broadcast_from_stream<E>(
+    pub async fn broadcast_from_stream(
+        &self,
+        mut stream: impl Stream<Item = Channel::Item> + Unpin,
+    ) {
+        while let Some(item) = stream.next().await {
+            if let Err(BroadcastError::ReceiverFailure) = self.broadcast(item).await {
+                break;
+            }
+        }
+    }
+
+    pub async fn broadcast_from_result_stream<E>(
         &self,
         mut stream: impl Stream<Item = Result<Channel::Item, E>> + Unpin,
     ) -> Result<(), E> {

@@ -2,20 +2,20 @@ mod download_fanout;
 
 #[proc_macro_derive(
     FanoutConsumerGroup,
-    attributes(fanout_consumer_group_error_ty, fanout_consumer_group_output_derive)
+    attributes(fanout_consumer_group_item_type, fanout_consumer_group_output_derive)
 )]
 pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let consumer_group = syn::parse_macro_input!(input as syn::DeriveInput);
-    let mut error_ty = None;
+    let mut item_ty = None;
     let mut fanout_consumer_group_output_derives = None;
     for attr in &consumer_group.attrs {
         if attr
             .meta
             .path()
             .get_ident()
-            .is_some_and(|path_ident| path_ident == "fanout_consumer_group_error_ty")
+            .is_some_and(|path_ident| path_ident == "fanout_consumer_group_item_type")
         {
-            error_ty = Some(attr.parse_args().unwrap());
+            item_ty = Some(attr.parse_args().unwrap());
         } else if attr
             .meta
             .path()
@@ -33,22 +33,26 @@ pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macr
             });
         }
     }
-    let error_ty =
-        error_ty.expect("Error type must be specified with #[fanout_consumer_group_error_ty(...)]");
+    let item_ty =
+        item_ty.expect("Item type must be specified with #[fanout_consumer_group_item_type(...)]");
     let output_struct_ident = quote::format_ident!("{}Output", consumer_group.ident);
     let consumer_group_impl = download_fanout::consumer::impl_consumer_group(
         &consumer_group,
         &output_struct_ident,
-        &error_ty,
+        &item_ty,
     );
-    let consumer_group_output_struct = download_fanout::consumer::create_consumer_group_output(
+    let consumer_group_output = download_fanout::consumer::create_consumer_group_output(
         consumer_group,
         output_struct_ident,
         fanout_consumer_group_output_derives,
     );
+    let cancel_egress_impl = download_fanout::consumer::impl_cancel_egress(&consumer_group_output);
+    let is_retryable_impl = download_fanout::consumer::impl_maybe_retryable(&consumer_group_output);
     let output = quote::quote! {
         #consumer_group_impl
-        #consumer_group_output_struct
+        #consumer_group_output
+        #cancel_egress_impl
+        #is_retryable_impl
     }
     .into();
     output

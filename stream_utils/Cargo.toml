@@ -20,13 +20,12 @@ serde = { version = "1.0.228", optional = true }
 itertools = "0.14.0"
 
 [features]
-default = ["broadcaster", "derive", "download_fanout", "serializer", "tracing"]
+default = ["broadcaster", "derive", "fanout", "serializer", "tracing"]
 
-broadcaster = ["dep:bon", "dep:futures", "dep:tokio", "dep:tokio-util"]
+broadcaster = ["dep:bon", "dep:futures", "tokio", "dep:tokio-util"]
 crossfire = ["dep:crossfire"]
 derive = ["stream_utils_derive"]
-download_fanout = ["broadcaster", "dep:bytes", "dep:futures", "dep:thiserror", "dep:tokio", "dep:tokio-util"]
+fanout = ["broadcaster", "dep:bytes", "dep:futures", "dep:thiserror", "tokio", "dep:tokio-util"]
 kanal = ["dep:kanal"]
 serializer = ["dep:futures", "dep:serde"]
-tokio = ["dep:tokio"]
 tracing = ["dep:tracing"]

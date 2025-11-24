@@ -4,7 +4,7 @@ pub trait Receiver {
 }
 
 pub struct NoOpReceiver<T> {
-    pub item: std::marker::PhantomData<T>,
+    item: std::marker::PhantomData<T>,
 }
 
 impl<T> NoOpReceiver<T> {

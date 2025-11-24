@@ -1,8 +1,8 @@
 #[cfg(feature = "broadcaster")]
 pub mod broadcaster;
 pub mod channel;
-#[cfg(feature = "download_fanout")]
-pub mod download_fanout;
+#[cfg(feature = "fanout")]
+pub mod fanout;
 #[cfg(feature = "serializer")]
 pub mod serializer;
 
