@@ -36,7 +36,7 @@ where
 
 pub trait FanoutConsumerGroup {
     type Item;
-    type Output: CancelEgress + super::MaybeRetryable;
+    type Output: CancelEgress;
     fn consume_from_fanout<'a, 'b, Channel>(
         &'a self,
         fanout_broadcaster: &'b mut broadcaster::Broadcaster<Channel>,
@@ -83,7 +83,6 @@ impl<Consumer> FanoutConsumerGroup for ConsumerOrResolved<Consumer>
 where
     Consumer: FanoutConsumer,
     Consumer::Output: Clone,
-    Consumer::Error: super::MaybeRetryable,
 {
     type Item = Consumer::Item;
     type Output = Result<Consumer::Output, Consumer::Error>;
@@ -127,7 +126,6 @@ where
 impl<Consumer> FanoutConsumerGroup for Consumer
 where
     Consumer: FanoutConsumer,
-    Consumer::Error: super::MaybeRetryable,
 {
     type Item = Consumer::Item;
     type Output = Result<Consumer::Output, Consumer::Error>;

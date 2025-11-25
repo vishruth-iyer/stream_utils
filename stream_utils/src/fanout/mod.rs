@@ -97,29 +97,3 @@ where
         StreamFanout { source: self.source, consumers: self.consumers, state: std::marker::PhantomData }
     }
 }
-
-pub trait MaybeRetryable {
-    fn is_retryable(&self) -> bool;
-    fn should_retry(&self) -> bool;
-}
-
-impl<T, E> MaybeRetryable for Result<T, E>
-where
-    E: MaybeRetryable,
-{
-    fn is_retryable(&self) -> bool {
-        self.is_ok() || self.as_ref().is_err_and(E::is_retryable)
-    }
-    fn should_retry(&self) -> bool {
-        self.is_err()
-    }
-}
-
-impl MaybeRetryable for std::convert::Infallible {
-    fn is_retryable(&self) -> bool {
-        true
-    }
-    fn should_retry(&self) -> bool {
-        false
-    }
-}

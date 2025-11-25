@@ -36,3 +36,12 @@ pub(super) struct DownloadFanoutConsumers<'a> {
     #[builder(into)]
     pub bufferer: fanout::consumer::ConsumerOrResolved<&'a bufferer::Bufferer>,
 }
+
+impl DownloadFanoutConsumersOutput<'_> {
+    pub fn is_retryable(&self) -> bool {
+        true
+    }
+    pub fn should_retry(&self) -> bool {
+        self.bytes_counter_13.is_err()
+    }
+}

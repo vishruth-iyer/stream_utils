@@ -2,7 +2,7 @@ use crate::{broadcaster, channel};
 
 pub trait FanoutSource: Send + Sync + 'static + Sized {
     type Item: Clone;
-    type Error: super::MaybeRetryable;
+    type Error;
     async fn get_content_length(&mut self) -> Result<Option<u64>, Self::Error>;
     async fn broadcast<Channel>(
         &mut self,
@@ -17,7 +17,6 @@ impl<S, T, E> FanoutSource for S
 where
     S: futures::Stream<Item = Result<T, E>> + Unpin + Send + Sync + 'static + Sized,
     T: Clone,
-    E: super::MaybeRetryable,
 {
     type Item = T;
     type Error = E;

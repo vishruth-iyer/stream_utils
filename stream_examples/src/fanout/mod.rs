@@ -1,5 +1,5 @@
 use stream_utils::fanout::{
-    self, MaybeRetryable, consumer::FanoutConsumerGroup, source::FanoutSource,
+    self, consumer::FanoutConsumerGroup, source::FanoutSource,
 };
 
 mod consumer;
@@ -175,8 +175,8 @@ where
     }
 
     if errors.is_empty() {
-        if outputs.iter().any(MaybeRetryable::should_retry)
-            && outputs.iter().all(MaybeRetryable::is_retryable)
+        if outputs.iter().any(consumer::DownloadFanoutConsumersOutput::should_retry)
+            && outputs.iter().all(consumer::DownloadFanoutConsumersOutput::is_retryable)
         {
             // some downloads failed
             if retry_fanouts.len() < downloads_count {
@@ -214,14 +214,5 @@ impl From<String> for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-impl fanout::MaybeRetryable for Error {
-    fn is_retryable(&self) -> bool {
-        true
-    }
-    fn should_retry(&self) -> bool {
-        true
     }
 }

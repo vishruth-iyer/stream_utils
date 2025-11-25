@@ -47,12 +47,10 @@ pub fn derive_fanout_consumer_group(input: proc_macro::TokenStream) -> proc_macr
         fanout_consumer_group_output_derives,
     );
     let cancel_egress_impl = download_fanout::consumer::impl_cancel_egress(&consumer_group_output);
-    let is_retryable_impl = download_fanout::consumer::impl_maybe_retryable(&consumer_group_output);
     let output = quote::quote! {
         #consumer_group_impl
         #consumer_group_output
         #cancel_egress_impl
-        #is_retryable_impl
     }
     .into();
     output
