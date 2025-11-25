@@ -57,7 +57,7 @@ impl<Source, Consumers, BroadcasterChannel, OldBroadcasterBufferSize, EgressSend
 impl<Source, Consumers, BroadcasterChannel, BroadcasterBufferSize, OldEgressSender>
     StreamFanoutDriver<Source, Consumers, BroadcasterChannel, BroadcasterBufferSize, OldEgressSender>
 where
-    BroadcasterChannel: channel::Channel,
+    Source: super::source::FanoutSource,
 {
     pub fn with_egress_tx<EgressItem, EgressSender>(
         self,
@@ -65,7 +65,7 @@ where
     ) -> StreamFanoutDriver<Source, Consumers, BroadcasterChannel, BroadcasterBufferSize, EgressSender>
     where
         EgressSender: channel::sender::Sender<Item = EgressItem>,
-        EgressItem: super::egress::EgressItem<BroadcasterChannel::Item>,
+        EgressItem: super::egress::EgressItem<Source::Item>,
     {
         StreamFanoutDriver {
             stream_fanout: self.stream_fanout,

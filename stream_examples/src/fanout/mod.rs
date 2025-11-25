@@ -111,7 +111,7 @@ where
         i += 1;
         tokio::time::sleep(tokio::time::Duration::from_secs(i)).await;
     };
-    println!("{result:?}")
+    println!("{result:?}");
 }
 
 async fn attempt_download<'a, Channel>(
